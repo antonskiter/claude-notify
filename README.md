@@ -10,7 +10,7 @@ macOS CLI tool that sends native notifications. Clicking the notification activa
 ## Install
 
 ```sh
-git clone https://github.com/your-username/claude-notify
+git clone https://github.com/antonskiter/claude-notify
 cd claude-notify
 ./build-and-install.sh
 ```
@@ -28,17 +28,18 @@ claude-notify "message" [--title "Title"] [--sound "Sound"]
 
 ## Claude Code hook
 
-Add to `~/.claude/settings.json`:
+Add to `~/.claude/settings.json`. The hook receives JSON on stdin with `message`, `cwd`, and other fields. This config extracts the message as the notification body and the project folder name as the title:
 
 ```json
 {
   "hooks": {
     "Notification": [
       {
+        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "claude-notify \"$CLAUDE_NOTIFICATION\""
+            "command": "jq -r '\"\\(.message)\\n--title\\n\\(.cwd | split(\"/\") | last)\"' | xargs ~/bin/claude-notify"
           }
         ]
       }
