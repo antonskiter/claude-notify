@@ -24,8 +24,9 @@ struct CLIArgs {
 func parseArgs() -> CLIArgs {
     var args = CommandLine.arguments.dropFirst() // drop executable name
     var message: String? = nil
-    var title = "Claude Code"
-    var sound = "Glass"
+    let defaults = CLIArgs(message: "")
+    var title = defaults.title
+    var sound = defaults.sound
 
     while !args.isEmpty {
         let arg = args.removeFirst()
@@ -99,26 +100,36 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
-        defer { completionHandler() }
-
         switch response.actionIdentifier {
         case UNNotificationDefaultActionIdentifier:
             // User clicked the notification — activate VSCode.
-            if let appURL = NSWorkspace.shared.urlForApplication(
-                withBundleIdentifier: "com.microsoft.VSCode"
-            ) {
-                NSWorkspace.shared.openApplication(
-                    at: appURL,
-                    configuration: NSWorkspace.OpenConfiguration()
-                )
+            // Call completionHandler before dispatching to main queue; the process
+            // will exit inside the async block so the handler won't be dropped.
+            completionHandler()
+            DispatchQueue.main.async {
+                if let appURL = NSWorkspace.shared.urlForApplication(
+                    withBundleIdentifier: "com.microsoft.VSCode"
+                ) {
+                    // Use the completion-handler variant so the process stays
+                    // alive until VSCode has been activated (C1 fix).
+                    NSWorkspace.shared.openApplication(
+                        at: appURL,
+                        configuration: NSWorkspace.OpenConfiguration()
+                    ) { _, _ in
+                        exit(0)
+                    }
+                } else {
+                    exit(0)
+                }
             }
-            exit(0)
 
         case UNNotificationDismissActionIdentifier:
             // User dismissed the notification.
+            completionHandler()
             exit(0)
 
         default:
+            completionHandler()
             exit(0)
         }
     }
