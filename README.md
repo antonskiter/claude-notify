@@ -1,6 +1,6 @@
 # claude-notify
 
-macOS CLI tool that sends native notifications. Clicking the notification activates VSCode. Built for use with Claude Code hooks.
+macOS CLI tool that sends native notifications. Clicking the notification activates the app Claude Code is running in. Built for use with Claude Code hooks.
 
 ## Requirements
 
@@ -20,11 +20,16 @@ Installs the `.app` bundle and a wrapper script to `~/bin/`. Make sure `~/bin` i
 ## Usage
 
 ```sh
-claude-notify "message" [--title "Title"] [--sound "Sound"]
+claude-notify "message" [--title "Title"] [--sound "Sound"] [--app "bundle.id"]
 ```
 
 - `--title` defaults to `Claude Code`
 - `--sound` defaults to `Glass` (system sounds from `/System/Library/Sounds/`)
+- `--app` overrides which app to activate on click (bundle identifier). By default, auto-detected from `TERM_PROGRAM`:
+  - VSCode → `com.microsoft.VSCode`
+  - iTerm2 → `com.googlecode.iterm2`
+  - Terminal.app → `com.apple.Terminal`
+  - Warp → `dev.warp.Warp-Stable`
 
 ## Claude Code hook
 
@@ -65,7 +70,7 @@ The `"matcher": ""` catches all of these. To filter, set the matcher to match sp
 
 `UNUserNotificationCenter` requires an `.app` bundle identity to send and receive notifications, so the tool is compiled into a minimal app bundle (`claude-notify.app`). A thin wrapper shell script in `~/bin/claude-notify` forwards all arguments to the binary inside the bundle.
 
-The process stays alive after posting the notification to handle the user's response. It exits when the notification is clicked (and VSCode is activated), dismissed, or after a 10-minute safety timeout.
+The process stays alive after posting the notification to handle the user's response. It exits when the notification is clicked (and the source app is activated), dismissed, or after a 10-minute safety timeout.
 
 ## First run
 
