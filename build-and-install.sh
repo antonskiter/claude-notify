@@ -14,6 +14,7 @@ fi
 
 echo "Creating .app bundle structure..."
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
+mkdir -p "$APP_BUNDLE/Contents/Resources"
 
 echo "Writing Info.plist..."
 cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
@@ -29,11 +30,24 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
     <string>claude-notify</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>LSUIElement</key>
     <true/>
 </dict>
 </plist>
 PLIST
+
+CLAUDE_ICON="/Applications/Claude.app/Contents/Resources/electron.icns"
+if [ -f "$CLAUDE_ICON" ]; then
+    echo "Copying Claude icon..."
+    cp "$CLAUDE_ICON" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+elif [ -f "$SCRIPT_DIR/AppIcon.icns" ]; then
+    echo "Copying bundled icon..."
+    cp "$SCRIPT_DIR/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
+else
+    echo "Warning: No icon found. Notifications will use a generic icon."
+fi
 
 echo "Building $APP_NAME..."
 swiftc "$SCRIPT_DIR/claude-notify.swift" -o "$APP_BUNDLE/Contents/MacOS/$APP_NAME" -framework UserNotifications -framework AppKit
