@@ -1,13 +1,11 @@
 #!/bin/bash
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_NAME="claude-notify"
 BUNDLE_ID="com.claude.notify"
 INSTALL_DIR="$HOME/bin"
 APP_BUNDLE="$INSTALL_DIR/$APP_NAME.app"
-
-echo "Building $APP_NAME..."
-swiftc claude-notify.swift -o claude-notify -framework UserNotifications -framework AppKit
 
 echo "Cleaning up existing bundle..."
 if [ -d "$APP_BUNDLE" ]; then
@@ -37,15 +35,13 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << 'PLIST'
 </plist>
 PLIST
 
-echo "Installing binary into bundle..."
-mv claude-notify "$APP_BUNDLE/Contents/MacOS/claude-notify"
+echo "Building $APP_NAME..."
+swiftc "$SCRIPT_DIR/claude-notify.swift" -o "$APP_BUNDLE/Contents/MacOS/$APP_NAME" -framework UserNotifications -framework AppKit
 
 echo "Creating symlink..."
-if [ -L "$INSTALL_DIR/$APP_NAME" ]; then
-    rm "$INSTALL_DIR/$APP_NAME"
-fi
+rm -f "$INSTALL_DIR/$APP_NAME"
 ln -s "$APP_BUNDLE/Contents/MacOS/$APP_NAME" "$INSTALL_DIR/$APP_NAME"
 
 echo ""
 echo "Done! $APP_NAME installed successfully."
-echo "Usage: claude-notify \"Title\" \"Message\""
+echo "Usage: claude-notify <message> [--title <title>] [--sound <sound>]"
