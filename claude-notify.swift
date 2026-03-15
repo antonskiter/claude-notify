@@ -5,20 +5,25 @@ import UserNotifications
 
 func printUsage() {
     let name = (CommandLine.arguments[0] as NSString).lastPathComponent
-    print("Usage: \(name) <message> [--title <title>] [--sound <sound>] [--help]")
+    print("Usage: \(name) <message> [--title <title>] [--sound <sound>] [--app <bundle-id>] [--help]")
     print("")
     print("Arguments:")
-    print("  <message>        Notification body text (required)")
-    print("  --title <title>  Notification title (default: \"Claude Code\")")
-    print("  --sound <sound>  Sound name without extension (default: \"Glass\")")
-    print("                   References system sounds at /System/Library/Sounds/")
-    print("  --help           Print this usage and exit")
+    print("  <message>           Notification body text (required)")
+    print("  --title <title>     Notification title (default: \"Claude Code\")")
+    print("  --sound <sound>     Sound name without extension (default: \"Glass\")")
+    print("                      References system sounds at /System/Library/Sounds/")
+    print("  --app <bundle-id>   Bundle identifier of the app to activate on click")
+    print("                      (default: auto-detected from TERM_PROGRAM environment variable)")
+    print("                      Examples: com.microsoft.VSCode, com.googlecode.iterm2,")
+    print("                                com.apple.Terminal, dev.warp.Warp-Stable")
+    print("  --help              Print this usage and exit")
 }
 
 struct CLIArgs {
     var message: String
     var title: String = "Claude Code"
     var sound: String = "Glass"
+    var app: String = ""
 }
 
 func parseArgs() -> CLIArgs {
@@ -27,6 +32,7 @@ func parseArgs() -> CLIArgs {
     let defaults = CLIArgs(message: "")
     var title = defaults.title
     var sound = defaults.sound
+    var app = defaults.app
 
     while !args.isEmpty {
         let arg = args.removeFirst()
@@ -52,6 +58,14 @@ func parseArgs() -> CLIArgs {
             args.removeFirst()
             sound = value
 
+        case "--app":
+            guard let value = args.first else {
+                fputs("Error: --app requires a value\n", stderr)
+                exit(1)
+            }
+            args.removeFirst()
+            app = value
+
         default:
             if arg.hasPrefix("--") {
                 fputs("Error: Unknown flag \(arg)\n", stderr)
@@ -73,7 +87,28 @@ func parseArgs() -> CLIArgs {
         exit(1)
     }
 
-    return CLIArgs(message: body, title: title, sound: sound)
+    return CLIArgs(message: body, title: title, sound: sound, app: app)
+}
+
+// MARK: - App Detection
+
+func detectBundleID(from cliApp: String) -> String {
+    if !cliApp.isEmpty {
+        return cliApp
+    }
+    let termProgram = ProcessInfo.processInfo.environment["TERM_PROGRAM"] ?? ""
+    switch termProgram {
+    case "vscode":
+        return "com.microsoft.VSCode"
+    case "iTerm.app":
+        return "com.googlecode.iterm2"
+    case "Apple_Terminal":
+        return "com.apple.Terminal"
+    case "WarpTerminal":
+        return "dev.warp.Warp-Stable"
+    default:
+        return "com.microsoft.VSCode"
+    }
 }
 
 // MARK: - Notification Delegate
@@ -81,6 +116,12 @@ func parseArgs() -> CLIArgs {
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 
     static let categoryIdentifier = "claude-notify"
+
+    let bundleID: String
+
+    init(bundleID: String) {
+        self.bundleID = bundleID
+    }
 
     // Show banner + play sound even when the "app" is frontmost.
     nonisolated func userNotificationCenter(
@@ -99,16 +140,17 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     ) {
         switch response.actionIdentifier {
         case UNNotificationDefaultActionIdentifier:
-            // User clicked the notification — activate VSCode.
+            // User clicked the notification — activate the target app.
             // Call completionHandler before dispatching to main queue; the process
             // will exit inside the async block so the handler won't be dropped.
             completionHandler()
+            let targetBundleID = bundleID
             DispatchQueue.main.async {
                 if let appURL = NSWorkspace.shared.urlForApplication(
-                    withBundleIdentifier: "com.microsoft.VSCode"
+                    withBundleIdentifier: targetBundleID
                 ) {
                     // Use the completion-handler variant so the process stays
-                    // alive until VSCode has been activated (C1 fix).
+                    // alive until the app has been activated (C1 fix).
                     NSWorkspace.shared.openApplication(
                         at: appURL,
                         configuration: NSWorkspace.OpenConfiguration()
@@ -135,9 +177,10 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 // MARK: - Entry Point
 
 let cliArgs = parseArgs()
+let bundleID = detectBundleID(from: cliArgs.app)
 
 // Set up the delegate before touching UNUserNotificationCenter.
-let delegate = NotificationDelegate()
+let delegate = NotificationDelegate(bundleID: bundleID)
 let center = UNUserNotificationCenter.current()
 center.delegate = delegate
 
