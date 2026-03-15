@@ -28,7 +28,9 @@ claude-notify "message" [--title "Title"] [--sound "Sound"]
 
 ## Claude Code hook
 
-Add to `~/.claude/settings.json`. The hook receives JSON on stdin with `message`, `cwd`, and other fields. This config extracts the message as the notification body and the project folder name as the title:
+Add to `~/.claude/settings.json`. This is a global config — every Claude Code session on your machine will use it.
+
+The hook receives JSON on stdin with `message`, `cwd`, and other fields. This config extracts the message as the notification body and the project folder name as the title:
 
 ```json
 {
@@ -39,7 +41,7 @@ Add to `~/.claude/settings.json`. The hook receives JSON on stdin with `message`
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '\"\\(.message)\\n--title\\n\\(.cwd | split(\"/\") | last)\"' | xargs ~/bin/claude-notify"
+            "command": "bash -c 'read -r JSON; MSG=$(echo \"$JSON\" | jq -r .message); PROJ=$(echo \"$JSON\" | jq -r \".cwd | split(\\\"/\\\") | last\"); ~/bin/claude-notify \"$MSG\" --title \"$PROJ\"'"
           }
         ]
       }
@@ -47,6 +49,17 @@ Add to `~/.claude/settings.json`. The hook receives JSON on stdin with `message`
   }
 }
 ```
+
+### When you'll get notified
+
+The `Notification` hook fires whenever Claude Code needs your attention:
+
+- **Task finished** — Claude completed a long coding session and is waiting for your next instruction
+- **Permission needed** — Claude wants to run a tool and needs your approval
+- **Question asked** — Claude is asking you a question and waiting for your answer
+- **Auth completed** — a background authentication flow finished
+
+The `"matcher": ""` catches all of these. To filter, set the matcher to match specific `notification_type` values: `permission_prompt`, `idle_prompt`, `elicitation_dialog`, or `auth_success`.
 
 ## How it works
 
