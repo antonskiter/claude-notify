@@ -38,9 +38,16 @@ PLIST
 echo "Building $APP_NAME..."
 swiftc "$SCRIPT_DIR/claude-notify.swift" -o "$APP_BUNDLE/Contents/MacOS/$APP_NAME" -framework UserNotifications -framework AppKit
 
-echo "Creating symlink..."
+echo "Ad-hoc code signing..."
+codesign --force --sign - "$APP_BUNDLE"
+
+echo "Creating wrapper script..."
 rm -f "$INSTALL_DIR/$APP_NAME"
-ln -s "$APP_BUNDLE/Contents/MacOS/$APP_NAME" "$INSTALL_DIR/$APP_NAME"
+cat > "$INSTALL_DIR/$APP_NAME" << 'WRAPPER'
+#!/bin/bash
+exec "$HOME/bin/claude-notify.app/Contents/MacOS/claude-notify" "$@"
+WRAPPER
+chmod +x "$INSTALL_DIR/$APP_NAME"
 
 echo ""
 echo "Done! $APP_NAME installed successfully."

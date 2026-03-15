@@ -78,9 +78,6 @@ func parseArgs() -> CLIArgs {
 
 // MARK: - Notification Delegate
 
-// Marked @MainActor so all delegate callbacks run on the main actor,
-// satisfying Swift 6 Sendable / concurrency requirements.
-@MainActor
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
 
     static let categoryIdentifier = "claude-notify"
